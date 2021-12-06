@@ -60,6 +60,7 @@ extern mtb_radar_sensing_context_t radar_sensing_context;
 
 extern int32_t entrance_count_in;
 extern int32_t entrance_count_out;
+extern cyhal_timer_t led_blink_timer;
 
 /*******************************************************************************
  * Functions

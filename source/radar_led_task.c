@@ -51,6 +51,9 @@
 #define COUNTER_OUT_LED_OFF_TIME   (50U)
 #define COUNTER_IN_LED_BLINK_TIME  (5U)
 #define COUNTER_OUT_LED_BLINK_TIME (2U)
+/* Delay time after each call to radar_led_task  */
+#define RADAR_LED_TASK_DELAY (2)
+
 
 /* List of LED status */
 typedef enum
@@ -272,7 +275,7 @@ void radar_led_task(void *pvParameters)
             gpio_led_set(led_color);
         }
         /* Include 2ms delay */
-        vTaskDelay(pdMS_TO_TICKS(2));
+        vTaskDelay(pdMS_TO_TICKS(RADAR_LED_TASK_DELAY));
     }
 }
 

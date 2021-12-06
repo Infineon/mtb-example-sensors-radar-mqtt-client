@@ -27,10 +27,10 @@
 
 /* Header file from system */
 #include <inttypes.h>
+#include <stdio.h>
 
 /* Header file includes */
-#include "cy_retarget_io.h"
-#include "cycfg.h"
+#include "cybsp.h"
 #include "cyhal.h"
 
 /* Header file for local task */
@@ -72,7 +72,6 @@ int32_t entrance_count_out = 0;
 /*******************************************************************************
  * Local Variables
  ******************************************************************************/
-static char local_pub_msg[MQTT_PUB_MSG_MAX_SIZE] = {0};
 static int32_t occupy_status = 0;
 
 /*******************************************************************************
@@ -99,6 +98,9 @@ static void radar_sensing_callback(mtb_radar_sensing_context_t *context,
     (void)data;
 
     radar_led_set_pattern(event);
+
+    publisher_data_t publisher_q_data = {0};
+    publisher_q_data.cmd = PUBLISH_MQTT_MSG;
 
     switch (event)
     {
@@ -132,7 +134,7 @@ static void radar_sensing_callback(mtb_radar_sensing_context_t *context,
 #endif
         default:
             printf("Unknown event. Error!\n");
-            snprintf(local_pub_msg, sizeof(local_pub_msg), "{\"Radar Module\": \"Unknown event. Error!\"}");
+            snprintf(publisher_q_data.data, sizeof(publisher_q_data.data), "{\"Radar Module\": \"Unknown event. Error!\"}");
             return;
     }
 
@@ -143,8 +145,8 @@ static void radar_sensing_callback(mtb_radar_sensing_context_t *context,
            entrance_count_out,
            occupy_status);
 
-    snprintf(local_pub_msg,
-             sizeof(local_pub_msg),
+    snprintf(publisher_q_data.data,
+             sizeof(publisher_q_data.data),
              "{\"IN_Count\":%ld, \"OUT_Count\":%ld, \"Status\":%ld}",
              entrance_count_in,
              entrance_count_out,
@@ -159,18 +161,18 @@ static void radar_sensing_callback(mtb_radar_sensing_context_t *context,
                ((mtb_radar_sensing_presence_event_info_t *)event_info)->distance +
                    ((mtb_radar_sensing_presence_event_info_t *)event_info)->accuracy);
 
-        snprintf(local_pub_msg, sizeof(local_pub_msg), "{\"PRESENCE\": \" IN\"}");
+        snprintf(publisher_q_data.data, sizeof(publisher_q_data.data), "{\"PRESENCE\": \" IN\"}");
     }
     else
     {
         printf("%.3f: Presence OUT\n", (float)event_info->timestamp / 1000);
 
-        snprintf(local_pub_msg, sizeof(local_pub_msg), "{\"PRESENCE\": \"OUT\"}");
+        snprintf(publisher_q_data.data, sizeof(publisher_q_data.data), "{\"PRESENCE\": \"OUT\"}");
     }
 #endif
 
-    /* Send message back to publish queue. If queue is full, 'local_pub_msg' will be dropped. So no result checking. */
-    xQueueSendToBack(mqtt_pub_q, local_pub_msg, 0);
+    /* Send message back to publish queue. */
+    xQueueSendToBack(publisher_task_q, &publisher_q_data, 0);
 }
 
 /*******************************************************************************
@@ -208,6 +210,8 @@ static uint64_t ifx_currenttime()
  ******************************************************************************/
 void radar_task(void *pvParameters)
 {
+    cy_rslt_t result;
+
     (void)pvParameters;
 
     cyhal_spi_t mSPI;
@@ -243,6 +247,13 @@ void radar_task(void *pvParameters)
     {
         CY_ASSERT(0);
     }
+
+    /* Reduce drive strength to improve EMI */
+    Cy_GPIO_SetSlewRate(CYHAL_GET_PORTADDR(CYBSP_SPI_MOSI), CYHAL_GET_PIN(CYBSP_SPI_MOSI), CY_GPIO_SLEW_FAST);
+    Cy_GPIO_SetDriveSel(CYHAL_GET_PORTADDR(CYBSP_SPI_MOSI), CYHAL_GET_PIN(CYBSP_SPI_MOSI), CY_GPIO_DRIVE_1_8);
+    Cy_GPIO_SetSlewRate(CYHAL_GET_PORTADDR(CYBSP_SPI_CLK), CYHAL_GET_PIN(CYBSP_SPI_CLK), CY_GPIO_SLEW_FAST);
+    Cy_GPIO_SetDriveSel(CYHAL_GET_PORTADDR(CYBSP_SPI_CLK), CYHAL_GET_PIN(CYBSP_SPI_CLK), CY_GPIO_DRIVE_1_8);
+
     /* Set the data rate to 25 Mbps */
     if (cyhal_spi_set_frequency(hw_cfg.spi, SPI_FREQUENCY) != CY_RSLT_SUCCESS)
     {
@@ -256,6 +267,8 @@ void radar_task(void *pvParameters)
         MTB_RADAR_SENSING_SUCCESS)
     {
         printf("**** ifx_radar_sensing_init error - Radar Wingboard not connected? ****\n\n\n");
+        printf("Exiting radar_task task\n");
+        // exit current thread (suspend)
         vTaskSuspend(NULL);
     }
 
@@ -314,6 +327,8 @@ void radar_task(void *pvParameters)
         MTB_RADAR_SENSING_SUCCESS)
     {
         printf("**** ifx_radar_sensing_init error - Radar Wingboard not connected? ****\n\n\n");
+        printf("Exiting radar_task task\n");
+        // exit current thread (suspend)
         vTaskSuspend(NULL);
     }
 
@@ -381,6 +396,14 @@ void radar_task(void *pvParameters)
         printf("Failed to create Radar led task!\n");
         CY_ASSERT(0);
     }
+
+    /* Stop LED blinking timer, turn on LED to indicate user that turn-on phase is over and entering ready state */
+    result = cyhal_timer_stop(&led_blink_timer);
+    if (result != CY_RSLT_SUCCESS)
+    {
+        CY_ASSERT(0);
+    }
+    cyhal_gpio_write(CYBSP_USER_LED, false); /* USER_LED is active low */
 
     for (;;)
     {
