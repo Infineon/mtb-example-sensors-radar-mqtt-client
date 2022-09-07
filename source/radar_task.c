@@ -53,7 +53,11 @@
 /* LED on */
 #define LED_STATE_ON (1U)
 /* RADAR sensor SPI frequency */
-#define SPI_FREQUENCY (25000000UL)
+#if defined(__ICCARM__) && !defined(NDEBUG)
+#define SPI_FREQUENCY (16000000UL)
+#else
+#define SPI_FREQUENCY (20000000UL)
+#endif
 
 /*******************************************************************************
  * Global Variables
@@ -63,7 +67,7 @@ TaskHandle_t radar_task_handle = NULL;
 /* Semaphore to protect radar sensing context */
 SemaphoreHandle_t sem_radar_sensing_context = NULL;
 /* Radar sensing context */
-mtb_radar_sensing_context_t radar_sensing_context = {0};
+mtb_radar_sensing_context_t radar_sensing_context;
 
 /* Entrance counter In & Out number. Can be reset from remote server. */
 int32_t entrance_count_in = 0;
@@ -99,7 +103,7 @@ static void radar_sensing_callback(mtb_radar_sensing_context_t *context,
 
     radar_led_set_pattern(event);
 
-    publisher_data_t publisher_q_data = {0};
+    publisher_data_t publisher_q_data;
     publisher_q_data.cmd = PUBLISH_MQTT_MSG;
 
     switch (event)
@@ -254,7 +258,7 @@ void radar_task(void *pvParameters)
     Cy_GPIO_SetSlewRate(CYHAL_GET_PORTADDR(CYBSP_SPI_CLK), CYHAL_GET_PIN(CYBSP_SPI_CLK), CY_GPIO_SLEW_FAST);
     Cy_GPIO_SetDriveSel(CYHAL_GET_PORTADDR(CYBSP_SPI_CLK), CYHAL_GET_PIN(CYBSP_SPI_CLK), CY_GPIO_DRIVE_1_8);
 
-    /* Set the data rate to 25 Mbps */
+    /* Set the data rate to 20 Mbps */
     if (cyhal_spi_set_frequency(hw_cfg.spi, SPI_FREQUENCY) != CY_RSLT_SUCCESS)
     {
         CY_ASSERT(0);

@@ -61,14 +61,21 @@ TaskHandle_t radar_config_task_handle = NULL;
  ******************************************************************************/
 static cy_rslt_t json_parser_cb(cy_JSON_object_t *json_object, void *arg)
 {
+    #define JSON_VALUE_LENGTH 32
     mtb_radar_sensing_context_t *context = (mtb_radar_sensing_context_t *)arg;
 
     bool bad_entry = false;
     bool not_success = false;
-    char json_value[32] = {0};
-    memcpy(json_value, json_object->value, json_object->value_length);
+    char json_value[JSON_VALUE_LENGTH];
 
-    publisher_data_t publisher_q_data = {0};
+    if (json_object->value_length >= JSON_VALUE_LENGTH)
+    {
+        return CY_RSLT_JSON_GENERIC_ERROR;
+    }
+    memcpy(json_value, json_object->value, json_object->value_length);
+    json_value[json_object->value_length] = '\0';
+
+    publisher_data_t publisher_q_data;
     publisher_q_data.cmd = PUBLISH_MQTT_MSG;
 
 #ifdef RADAR_ENTRANCE_COUNTER_MODE

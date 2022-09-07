@@ -82,7 +82,7 @@ static void unsubscribe_from_topic(void);
 /* Semaphore used to protect message payload */
 SemaphoreHandle_t sem_sub_payload = NULL;
 /* Subscribed message paylaod. Maximum with size of 512 byte. */
-char sub_msg_payload[512] = {0};
+char sub_msg_payload[512];
 
 /******************************************************************************
  * Function Name: subscriber_task

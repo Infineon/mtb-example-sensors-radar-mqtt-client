@@ -7,20 +7,7 @@
 #
 ################################################################################
 # \copyright
-# Copyright 2018-2021 Cypress Semiconductor Corporation
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# $ Copyright 2021-2022 Cypress Semiconductor Apache2 $
 ################################################################################
 
 
@@ -32,7 +19,7 @@
 # To change the target, it is recommended to use the Library manager
 # ('make modlibs' from command line), which will also update Eclipse IDE launch
 # configurations. If TARGET is manually edited, ensure TARGET_<BSP>.mtb with a
-# valid URL exists in th e application, run 'make getlibs' to fetch BSP contents
+# valid URL exists in the application, run 'make getlibs' to fetch BSP contents
 # and update or regenerate launch configurations for your IDE.
 TARGET=CYSBSYSKIT-DEV-01
 
@@ -78,7 +65,7 @@ VERBOSE=
 # ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
 # added to the build
 #
-COMPONENTS=FREERTOS LWIP MBEDTLS SECURE_SOCKETS RTOS_AWARE 
+COMPONENTS=FREERTOS LWIP MBEDTLS SECURE_SOCKETS RTOS_AWARE
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
 DISABLE_COMPONENTS=
@@ -97,10 +84,10 @@ INCLUDES=./configs
 MBEDTLSFLAGS = MBEDTLS_USER_CONFIG_FILE='"mbedtls_user_config.h"'
 
 # Add additional defines to the build process (without a leading -D).
-DEFINES=$(MBEDTLSFLAGS) CYBSP_WIFI_CAPABLE CY_RETARGET_IO_CONVERT_LF_TO_CRLF 
+DEFINES=$(MBEDTLSFLAGS) CYBSP_WIFI_CAPABLE CY_RETARGET_IO_CONVERT_LF_TO_CRLF
 
 # CY8CPROTO-062-4343W board shares the same GPIO for the user button (USER BTN1)
-# and the CYW4343W host wake up pin. Since this example uses the GPIO for  
+# and the CYW4343W host wake up pin. Since this example uses the GPIO for
 # interfacing with the user button, the SDIO interrupt to wake up the host is
 # disabled by setting CY_WIFI_HOST_WAKE_SW_FORCE to '0'.
 ifeq ($(TARGET), CY8CPROTO-062-4343W)
@@ -114,7 +101,12 @@ VFP_SELECT=
 #
 # NOTE: Includes and defines should use the INCLUDES and DEFINES variable
 # above.
+ifeq ($(TOOLCHAIN),IAR)
+CFLAGS+=--dlib_config=full
+CFLAGS+=--vla
+else
 CFLAGS=
+endif
 
 # Additional / custom C++ compiler flags.
 #
@@ -129,7 +121,11 @@ CXXFLAGS=
 ASFLAGS=
 
 # Additional / custom linker flags.
+ifeq ($(TOOLCHAIN),IAR)
+LDFLAGS=--threaded_lib
+else
 LDFLAGS=
+endif
 
 # Additional / custom libraries to link in to the application.
 LDLIBS=
